@@ -50,18 +50,5 @@ variable "require_approval" {
   default     = false
 }
 
-variable "github_owner" {
-  description = "GitHub repository owner"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repository name"
-  type        = string
-}
-
-variable "create_github_oidc" {
-  description = "Whether to create GitHub OIDC provider"
-  type        = bool
-  default     = true
-}
+# NOTE: github_owner, github_repo, create_github_oidc variables removed
+# GitHub OIDC is now managed in terraform/bootstrap/

@@ -75,6 +75,13 @@ module "ecs" {
   container_cpu         = var.container_cpu
   container_memory      = var.container_memory
   desired_count         = var.desired_count
+
+  # ECS Launch Type Configuration
+  launch_type          = var.launch_type
+  ec2_instance_type    = var.ec2_instance_type
+  ec2_desired_capacity = var.ec2_desired_capacity
+  ec2_min_capacity     = var.ec2_min_capacity
+  ec2_max_capacity     = var.ec2_max_capacity
 }
 
 module "codepipeline" {
@@ -90,7 +97,5 @@ module "codepipeline" {
   target_group_green_name = module.alb.target_group_green_name
   termination_wait_time   = 10
   require_approval        = true  # Manual approval required
-  github_owner            = var.github_owner
-  github_repo             = var.github_repo
-  create_github_oidc      = false # Already created in dev
+  # NOTE: GitHub OIDC is now managed in terraform/bootstrap/
 }

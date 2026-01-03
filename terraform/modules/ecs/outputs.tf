@@ -52,3 +52,34 @@ output "log_group_name" {
   description = "CloudWatch log group name"
   value       = aws_cloudwatch_log_group.ecs.name
 }
+
+# EC2 Infrastructure outputs (only populated when launch_type is ec2)
+output "launch_type" {
+  description = "ECS launch type (fargate or ec2)"
+  value       = var.launch_type
+}
+
+output "ec2_capacity_provider_name" {
+  description = "EC2 capacity provider name"
+  value       = var.launch_type != "fargate" ? aws_ecs_capacity_provider.ec2[0].name : null
+}
+
+output "ec2_asg_name" {
+  description = "Auto Scaling Group name for EC2 instances"
+  value       = var.launch_type != "fargate" ? aws_autoscaling_group.ecs[0].name : null
+}
+
+output "ec2_asg_arn" {
+  description = "Auto Scaling Group ARN for EC2 instances"
+  value       = var.launch_type != "fargate" ? aws_autoscaling_group.ecs[0].arn : null
+}
+
+output "ec2_launch_template_id" {
+  description = "Launch template ID for EC2 instances"
+  value       = var.launch_type != "fargate" ? aws_launch_template.ecs[0].id : null
+}
+
+output "ec2_instance_security_group_id" {
+  description = "Security group ID for EC2 instances"
+  value       = var.launch_type != "fargate" ? aws_security_group.ecs_instances[0].id : null
+}

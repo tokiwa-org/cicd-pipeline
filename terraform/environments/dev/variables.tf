@@ -52,12 +52,36 @@ variable "desired_count" {
   default     = 1
 }
 
-variable "github_owner" {
-  description = "GitHub repository owner"
+# ECS Launch Type Configuration
+variable "launch_type" {
+  description = "ECS launch type: fargate or ec2"
   type        = string
+  default     = "fargate"
 }
 
-variable "github_repo" {
-  description = "GitHub repository name"
+variable "ec2_instance_type" {
+  description = "EC2 instance type for ECS (used when launch_type is ec2)"
   type        = string
+  default     = "t3.medium"
 }
+
+variable "ec2_desired_capacity" {
+  description = "Desired number of EC2 instances in ASG"
+  type        = number
+  default     = 2
+}
+
+variable "ec2_min_capacity" {
+  description = "Minimum number of EC2 instances in ASG"
+  type        = number
+  default     = 1
+}
+
+variable "ec2_max_capacity" {
+  description = "Maximum number of EC2 instances in ASG"
+  type        = number
+  default     = 4
+}
+
+# NOTE: github_owner and github_repo removed
+# GitHub OIDC is now managed in terraform/bootstrap/

@@ -28,7 +28,5 @@ output "artifacts_bucket_arn" {
   value       = aws_s3_bucket.artifacts.arn
 }
 
-output "github_actions_role_arn" {
-  description = "GitHub Actions IAM role ARN"
-  value       = aws_iam_role.github_actions.arn
-}
+# NOTE: github_actions_role_arn output removed
+# GitHub Actions role is now managed in terraform/bootstrap/

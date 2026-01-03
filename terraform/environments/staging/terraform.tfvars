@@ -8,6 +8,4 @@ container_cpu  = 256
 container_memory = 512
 desired_count  = 2
 
-# GitHub configuration
-github_owner = "tokiwa-org"
-github_repo  = "cicd-pipeline"
+# GitHub OIDC is now managed in terraform/bootstrap/
