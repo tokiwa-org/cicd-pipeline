@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+*.md
+.env*
+.eslintrc.json
+jest.config.js
+tsconfig.json
+**/*.test.ts

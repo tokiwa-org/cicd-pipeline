@@ -1,0 +1,41 @@
+{
+  "family": "cicd-pipeline-${ENVIRONMENT}-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/cicd-pipeline-${ENVIRONMENT}-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/cicd-pipeline-${ENVIRONMENT}-ecs-task-role",
+  "containerDefinitions": [
+    {
+      "name": "cicd-pipeline-${ENVIRONMENT}-app",
+      "image": "<IMAGE1_NAME>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cicd-pipeline-${ENVIRONMENT}",
+          "awslogs-region": "ap-northeast-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "${ENVIRONMENT}"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: <TASK_DEFINITION>
+        LoadBalancerInfo:
+          ContainerName: "cicd-pipeline-${ENVIRONMENT}-app"
+          ContainerPort: 3000
+        PlatformVersion: "LATEST"
+Hooks:
+  - BeforeInstall: "LambdaFunctionForBeforeInstall"
+  - AfterInstall: "LambdaFunctionForAfterInstall"
+  - AfterAllowTestTraffic: "LambdaFunctionForAfterAllowTestTraffic"
+  - BeforeAllowTraffic: "LambdaFunctionForBeforeAllowTraffic"
+  - AfterAllowTraffic: "LambdaFunctionForAfterAllowTraffic"
