@@ -47,12 +47,8 @@ locals {
 
 # S3 Bucket for Terraform State
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "${var.project_name}-terraform-state-${local.account_id}"
-
-  # Prevent accidental deletion
-  lifecycle {
-    prevent_destroy = true
-  }
+  bucket        = "${var.project_name}-terraform-state-${local.account_id}"
+  force_destroy = true  # Allow deletion even with objects/versions
 
   tags = {
     Name = "${var.project_name}-terraform-state"
@@ -94,11 +90,6 @@ resource "aws_dynamodb_table" "terraform_lock" {
   attribute {
     name = "LockID"
     type = "S"
-  }
-
-  # Prevent accidental deletion
-  lifecycle {
-    prevent_destroy = true
   }
 
   tags = {

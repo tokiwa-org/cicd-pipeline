@@ -4,7 +4,8 @@ locals {
 
 # S3 Bucket for Pipeline Artifacts
 resource "aws_s3_bucket" "artifacts" {
-  bucket = "${local.name_prefix}-pipeline-artifacts-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name_prefix}-pipeline-artifacts-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true  # Allow deletion even with objects/versions
 
   tags = {
     Name = "${local.name_prefix}-pipeline-artifacts"
