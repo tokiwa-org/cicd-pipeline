@@ -1,10 +1,10 @@
 terraform {
   backend "s3" {
-    bucket         = "your-terraform-state-bucket"
+    bucket         = "cicd-pipeline-terraform-state-442426898844"
     key            = "cicd-pipeline/dev/terraform.tfstate"
     region         = "ap-northeast-1"
     encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    dynamodb_table = "cicd-pipeline-terraform-lock"
   }
 
   required_version = ">= 1.5.0"

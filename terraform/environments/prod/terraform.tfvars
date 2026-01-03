@@ -8,6 +8,6 @@ container_cpu  = 512
 container_memory = 1024
 desired_count  = 3
 
-# GitHub configuration - UPDATE THESE VALUES
-github_owner = "your-github-username"
+# GitHub configuration
+github_owner = "tokiwa-org"
 github_repo  = "cicd-pipeline"
