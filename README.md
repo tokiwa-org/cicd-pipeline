@@ -1,241 +1,134 @@
-# CI/CD Pipeline for ECS Fargate
+# CI/CD Pipeline for ECS
 
-AWS ECS Fargate へのハイブリッドCI/CDパイプライン
-
-```
-GitHub → GitHub Actions (CI) → ECR → CodePipeline (CD) → ECS Fargate
-```
-
-## アーキテクチャ
+GitHub Actions + CodePipeline による ECS へのCI/CDパイプライン
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       CI/CD Pipeline Architecture                    │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────┐    ┌──────────────────┐    ┌─────────┐                 │
-│  │ GitHub  │───▶│  GitHub Actions  │───▶│   ECR   │                 │
-│  │  Push   │    │  (Build & Test)  │    │ (Image) │                 │
-│  └─────────┘    └──────────────────┘    └────┬────┘                 │
-│                                              │                       │
-│                                              ▼                       │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                      AWS CodePipeline                          │  │
-│  │  ┌─────────┐    ┌─────────┐    ┌─────────┐                    │  │
-│  │  │   Dev   │───▶│ Staging │───▶│  Prod   │                    │  │
-│  │  │ Deploy  │    │ Deploy  │    │ Deploy  │                    │  │
-│  │  └─────────┘    └────┬────┘    └────┬────┘                    │  │
-│  │                      │              │                          │  │
-│  │                [Approval]     [Approval]                       │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    ECS Fargate Clusters                        │  │
-│  │  ┌─────────┐    ┌─────────┐    ┌─────────┐                    │  │
-│  │  │   dev   │    │ staging │    │  prod   │                    │  │
-│  │  └─────────┘    └─────────┘    └─────────┘                    │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+GitHub Push → GitHub Actions (Build) → ECR → S3 → CodePipeline → ECS (Blue/Green)
 ```
 
-## 技術スタック
+## 前提条件
 
-| コンポーネント | 技術 |
-|--------------|------|
-| CI (テスト・ビルド) | GitHub Actions |
-| コンテナレジストリ | Amazon ECR |
-| CD (デプロイ) | CodePipeline + CodeDeploy |
-| コンテナ実行環境 | ECS Fargate |
-| IaC | Terraform |
-| デプロイ戦略 | Blue/Green |
+- AWS CLI v2 (認証済み)
+- Terraform >= 1.0.0
+- GitHub CLI (`gh auth login` 済み)
+- Docker
 
-## ディレクトリ構造
+## クイックスタート
+
+### 1. Bootstrap (初回のみ)
+
+Terraform State用のS3/DynamoDB、GitHub OIDC認証、GitHub Secretsを作成:
+
+```bash
+cd terraform/bootstrap
+terraform init
+terraform apply
+```
+
+作成されるリソース:
+- S3バケット (Terraform State)
+- DynamoDB (State Lock)
+- GitHub OIDC Provider
+- IAM Role (GitHub Actions用)
+- GitHub Secrets (AWS_ROLE_ARN, AWS_ACCOUNT_ID, ARTIFACTS_BUCKET)
+
+### 2. Dev環境デプロイ
+
+```bash
+cd terraform/environments/dev
+terraform init
+terraform apply
+```
+
+### 3. アプリデプロイ (GitHub Actions)
+
+コードをpushするとGitHub Actionsが自動実行:
+
+```bash
+git add .
+git commit -m "Deploy"
+git push
+```
+
+または手動トリガー:
+```bash
+gh workflow run build-push.yml
+```
+
+### 4. 動作確認
+
+```bash
+# ALB URLを取得
+cd terraform/environments/dev
+terraform output alb_dns_name
+
+# ヘルスチェック
+curl http://<alb-dns>/health
+```
+
+## ECS Launch Type
+
+FargateまたはEC2を選択可能:
+
+```hcl
+# terraform.tfvars
+launch_type = "fargate"  # または "ec2"
+```
+
+| 項目 | Fargate | EC2 |
+|-----|---------|-----|
+| 管理 | フルマネージド | インスタンス管理必要 |
+| コスト | 高め | 低め (Reserved/Spot利用可) |
+| 起動速度 | 速い | やや遅い |
+
+## 環境別デプロイ
+
+```bash
+# Staging (手動承認あり)
+cd terraform/environments/staging
+terraform apply
+
+# Production (手動承認あり)
+cd terraform/environments/prod
+terraform apply
+```
+
+## リソース削除
+
+全てのリソースは `terraform destroy` で削除可能:
+
+```bash
+# 環境削除
+cd terraform/environments/dev
+terraform destroy
+
+# Bootstrap削除 (最後に実行)
+cd terraform/bootstrap
+terraform destroy
+```
+
+## ディレクトリ構成
 
 ```
-cicd-pipeline/
-├── .github/workflows/          # GitHub Actions
-│   ├── ci.yml                  # PRテスト
-│   └── build-push.yml          # ビルド・ECRプッシュ
+├── app/                     # Node.js アプリケーション
 ├── terraform/
+│   ├── bootstrap/           # State管理 + GitHub OIDC
 │   ├── modules/
-│   │   ├── vpc/               # VPCネットワーク
-│   │   ├── ecr/               # ECRリポジトリ
-│   │   ├── ecs/               # ECSクラスタ・サービス
-│   │   ├── alb/               # Application Load Balancer
-│   │   └── codepipeline/      # CodePipeline + CodeDeploy
+│   │   ├── vpc/            # VPC/Subnet/NAT
+│   │   ├── alb/            # ALB + Target Groups
+│   │   ├── ecr/            # Container Registry
+│   │   ├── ecs/            # Cluster/Service/Task
+│   │   └── codepipeline/   # Pipeline + CodeDeploy
 │   └── environments/
 │       ├── dev/
 │       ├── staging/
 │       └── prod/
-├── app/                        # Node.js/TypeScriptアプリ
-│   ├── src/
-│   ├── Dockerfile
-│   └── package.json
-├── taskdef.json               # ECSタスク定義テンプレート
-├── appspec.yml                # CodeDeploy設定
-└── README.md
+├── .github/workflows/
+│   ├── ci.yml              # PR時のテスト
+│   └── build-push.yml      # Build → ECR → S3
+├── taskdef.json            # ECS Task Definition
+└── appspec.yml             # CodeDeploy設定
 ```
-
-## セットアップ
-
-### 前提条件
-
-- AWS CLI v2
-- Terraform >= 1.5.0
-- Node.js >= 20.0.0
-- Docker
-
-### 1. Terraform State用S3バケットとDynamoDBテーブルの作成
-
-```bash
-# S3バケット作成
-aws s3api create-bucket \
-  --bucket your-terraform-state-bucket \
-  --region ap-northeast-1 \
-  --create-bucket-configuration LocationConstraint=ap-northeast-1
-
-# バージョニング有効化
-aws s3api put-bucket-versioning \
-  --bucket your-terraform-state-bucket \
-  --versioning-configuration Status=Enabled
-
-# DynamoDBテーブル作成（ロック用）
-aws dynamodb create-table \
-  --table-name terraform-state-lock \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --region ap-northeast-1
-```
-
-### 2. 設定ファイルの更新
-
-1. `terraform/environments/*/terraform.tfvars` を編集:
-   - `github_owner`: GitHubユーザー名/組織名
-   - `github_repo`: リポジトリ名
-
-2. `terraform/environments/*/main.tf` の backend 設定を更新:
-   - `bucket`: 作成したS3バケット名
-
-### 3. Terraformでインフラ構築
-
-```bash
-# dev環境
-cd terraform/environments/dev
-terraform init
-terraform plan
-terraform apply
-
-# staging環境
-cd ../staging
-terraform init
-terraform plan
-terraform apply
-
-# prod環境
-cd ../prod
-terraform init
-terraform plan
-terraform apply
-```
-
-### 4. GitHub Secretsの設定
-
-リポジトリのSettings > Secrets and variablesで以下を設定:
-
-| Secret名 | 説明 |
-|---------|------|
-| `AWS_ROLE_ARN` | GitHub Actions用IAMロールARN |
-| `AWS_ACCOUNT_ID` | AWSアカウントID |
-| `ARTIFACTS_BUCKET` | パイプラインアーティファクト用S3バケット名 |
-
-### 5. 初回デプロイ
-
-```bash
-# アプリのビルドテスト
-cd app
-npm ci
-npm run lint
-npm run test
-npm run build
-
-# Dockerイメージビルドテスト
-docker build -t cicd-pipeline-app:test .
-docker run -p 3000:3000 cicd-pipeline-app:test
-```
-
-## CI/CDフロー
-
-### PRマージ前（CI）
-
-1. `app/`配下のコード変更でPR作成
-2. GitHub Actionsが自動実行:
-   - Lint
-   - Unit Test
-   - Build
-   - Security Scan
-
-### mainブランチマージ後（CD）
-
-1. GitHub Actionsがビルド・ECRプッシュ
-2. `imageDetail.json`をS3にアップロード
-3. CodePipelineがトリガー
-4. 環境別デプロイ:
-   - **dev**: 自動デプロイ
-   - **staging**: 手動承認後デプロイ
-   - **prod**: 手動承認後デプロイ
-
-## Blue/Greenデプロイ
-
-各環境でBlue/Greenデプロイを実施:
-
-1. 新バージョンをGreenターゲットグループにデプロイ
-2. テストリスナー(port 8080)で検証
-3. 本番リスナー(port 80)を切り替え
-4. 一定時間後にBlue(旧バージョン)を終了
-
-### ロールバック
-
-問題発生時はCodeDeployから自動/手動ロールバック可能。
-
-## ローカル開発
-
-```bash
-cd app
-
-# 依存関係インストール
-npm ci
-
-# 開発サーバー起動
-npm run dev
-
-# テスト実行
-npm test
-
-# ビルド
-npm run build
-
-# Dockerビルド
-docker build -t cicd-pipeline-app:local .
-docker run -p 3000:3000 cicd-pipeline-app:local
-```
-
-## 環境別設定
-
-| 環境 | VPC CIDR | タスク数 | CPU | Memory | 承認 |
-|-----|----------|---------|-----|--------|------|
-| dev | 10.0.0.0/16 | 1 | 256 | 512MB | 自動 |
-| staging | 10.1.0.0/16 | 2 | 256 | 512MB | 手動 |
-| prod | 10.2.0.0/16 | 3 | 512 | 1024MB | 手動 |
-
-## コスト概算
-
-| リソース | dev | staging | prod |
-|---------|-----|---------|------|
-| Fargate | ~$10/月 | ~$20/月 | ~$60/月 |
-| ALB | ~$20/月 | ~$20/月 | ~$20/月 |
-| NAT Gateway | ~$35/月 | ~$35/月 | ~$35/月 |
-| **合計** | ~$65/月 | ~$75/月 | ~$115/月 |
 
 ## トラブルシューティング
 
@@ -245,30 +138,48 @@ docker run -p 3000:3000 cicd-pipeline-app:local
 Error: Could not assume role with OIDC
 ```
 
-解決策:
-1. IAMロールの信頼ポリシーを確認
-2. GitHubリポジトリ名が正しいか確認
-
-### CodeDeployデプロイ失敗
-
+→ Bootstrap が正しく適用されているか確認:
+```bash
+cd terraform/bootstrap
+terraform apply
 ```
-The deployment failed because a specified file already exists
-```
-
-解決策:
-1. ECSサービスのタスク定義を確認
-2. appspec.ymlのコンテナ名を確認
 
 ### ECSタスク起動失敗
 
 ```
-Task stopped: CannotPullContainerError
+CannotPullContainerError
 ```
 
-解決策:
-1. ECRリポジトリにイメージが存在するか確認
-2. ECSタスク実行ロールにECR権限があるか確認
+→ ECRにイメージがあるか確認:
+```bash
+aws ecr list-images --repository-name cicd-pipeline-dev-app
+```
 
-## ライセンス
+→ なければGitHub Actionsを実行:
+```bash
+gh workflow run build-push.yml
+```
 
-MIT
+### CodeDeployデプロイ失敗
+
+→ ECSサービスのイベントを確認:
+```bash
+aws ecs describe-services \
+  --cluster cicd-pipeline-dev-cluster \
+  --services cicd-pipeline-dev-service \
+  --query 'services[0].events[:5]'
+```
+
+## ローカル開発
+
+```bash
+cd app
+npm ci
+npm run dev      # 開発サーバー (port 3000)
+npm test         # テスト実行
+npm run build    # ビルド
+
+# Dockerビルド
+docker build -t app:local .
+docker run -p 3000:3000 app:local
+```
