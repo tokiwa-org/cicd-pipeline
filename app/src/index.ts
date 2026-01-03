@@ -1,7 +1,7 @@
 /**
  * CI/CD Pipeline Demo Application
  * Initial deployment: 2026-01-03
- * Redeployed after cleanup test
+ * EC2 launch type test deployment
  */
 import express, { Request, Response } from 'express';
 
