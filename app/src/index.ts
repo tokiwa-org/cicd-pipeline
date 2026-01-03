@@ -1,3 +1,7 @@
+/**
+ * CI/CD Pipeline Demo Application
+ * Initial deployment: 2026-01-03
+ */
 import express, { Request, Response } from 'express';
 
 const app = express();
