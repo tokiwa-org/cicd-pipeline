@@ -227,7 +227,7 @@ resource "aws_codepipeline" "main" {
 
       configuration = {
         S3Bucket             = aws_s3_bucket.artifacts.bucket
-        S3ObjectKey          = "imageDetail.json"
+        S3ObjectKey          = "artifacts.zip"
         PollForSourceChanges = "true"
       }
     }

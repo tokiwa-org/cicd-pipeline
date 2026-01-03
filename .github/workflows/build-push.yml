@@ -141,9 +141,11 @@ jobs:
 
       - name: Upload artifacts to S3
         run: |
+          # Create a zip file containing all artifacts (required by CodePipeline S3 source)
+          zip -j artifacts.zip imageDetail.json taskdef.json appspec.yml
+          aws s3 cp artifacts.zip s3://${{ secrets.ARTIFACTS_BUCKET }}/artifacts.zip
+          # Also upload imageDetail.json to trigger CodePipeline
           aws s3 cp imageDetail.json s3://${{ secrets.ARTIFACTS_BUCKET }}/imageDetail.json
-          aws s3 cp taskdef.json s3://${{ secrets.ARTIFACTS_BUCKET }}/taskdef.json
-          aws s3 cp appspec.yml s3://${{ secrets.ARTIFACTS_BUCKET }}/appspec.yml
 
       - name: Summary
         run: |
