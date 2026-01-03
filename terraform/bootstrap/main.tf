@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"
+    }
   }
 
   # Initially use local state, then migrate to S3 after bootstrap
@@ -28,6 +32,11 @@ provider "aws" {
       Component   = "bootstrap"
     }
   }
+}
+
+provider "github" {
+  owner = var.github_owner
+  # Token is optional - provider will automatically use `gh auth login` credentials
 }
 
 data "aws_caller_identity" "current" {}
@@ -202,4 +211,26 @@ resource "aws_iam_role_policy" "github_actions" {
       }
     ]
   })
+}
+
+# =============================================================================
+# GitHub Repository Secrets (uses gh auth login credentials automatically)
+# =============================================================================
+
+resource "github_actions_secret" "aws_role_arn" {
+  repository      = var.github_repo
+  secret_name     = "AWS_ROLE_ARN"
+  plaintext_value = aws_iam_role.github_actions.arn
+}
+
+resource "github_actions_secret" "aws_account_id" {
+  repository      = var.github_repo
+  secret_name     = "AWS_ACCOUNT_ID"
+  plaintext_value = local.account_id
+}
+
+resource "github_actions_secret" "artifacts_bucket" {
+  repository      = var.github_repo
+  secret_name     = "ARTIFACTS_BUCKET"
+  plaintext_value = "${var.project_name}-dev-pipeline-artifacts-${local.account_id}"
 }

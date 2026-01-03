@@ -13,7 +13,7 @@ variable "aws_region" {
 variable "github_owner" {
   description = "GitHub repository owner"
   type        = string
-  default     = "nori-ut3g"
+  default     = "tokiwa-org"
 }
 
 variable "github_repo" {

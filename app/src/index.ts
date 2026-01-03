@@ -1,7 +1,7 @@
 /**
  * CI/CD Pipeline Demo Application
  * Initial deployment: 2026-01-03
- * EC2 launch type test deployment
+ * EC2 launch type - GitHub secrets via Terraform
  */
 import express, { Request, Response } from 'express';
 
