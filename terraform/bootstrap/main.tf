@@ -183,8 +183,10 @@ resource "aws_iam_role_policy" "github_actions" {
         Effect = "Allow"
         Action = [
           "ecs:DescribeServices",
+          "ecs:DescribeTasks",
           "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition"
+          "ecs:RegisterTaskDefinition",
+          "ecs:UpdateService"
         ]
         Resource = "*"
       },
