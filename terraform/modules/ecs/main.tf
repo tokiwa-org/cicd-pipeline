@@ -263,7 +263,7 @@ resource "aws_iam_role" "ecs_infrastructure" {
 resource "aws_iam_role_policy_attachment" "ecs_infrastructure" {
   count      = var.launch_type == "managed_instances" ? 1 : 0
   role       = aws_iam_role.ecs_infrastructure[0].name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRolePolicyForManagedInstances"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECSInfrastructureRolePolicyForManagedInstances"
 }
 
 # ECS Capacity Provider for Managed Instances
