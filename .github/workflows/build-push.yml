@@ -75,68 +75,20 @@ jobs:
           EOF
           cat imageDetail.json
 
-      - name: Generate taskdef.json
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Generate taskdef.json from template
         run: |
-          cat <<EOF > taskdef.json
-          {
-            "family": "cicd-pipeline-dev-task",
-            "networkMode": "awsvpc",
-            "requiresCompatibilities": ["FARGATE"],
-            "cpu": "256",
-            "memory": "512",
-            "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/cicd-pipeline-dev-ecs-task-execution-role",
-            "taskRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/cicd-pipeline-dev-ecs-task-role",
-            "containerDefinitions": [
-              {
-                "name": "cicd-pipeline-dev-app",
-                "image": "<IMAGE1_NAME>",
-                "essential": true,
-                "portMappings": [
-                  {
-                    "containerPort": 3000,
-                    "hostPort": 3000,
-                    "protocol": "tcp"
-                  }
-                ],
-                "logConfiguration": {
-                  "logDriver": "awslogs",
-                  "options": {
-                    "awslogs-group": "/ecs/cicd-pipeline-dev",
-                    "awslogs-region": "${AWS_REGION}",
-                    "awslogs-stream-prefix": "ecs"
-                  }
-                },
-                "environment": [
-                  {
-                    "name": "NODE_ENV",
-                    "value": "development"
-                  },
-                  {
-                    "name": "PORT",
-                    "value": "3000"
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
+          # Use template from repo and substitute variables
+          sed -e "s/\${ENVIRONMENT}/dev/g" \
+              -e "s/\${AWS_ACCOUNT_ID}/${{ secrets.AWS_ACCOUNT_ID }}/g" \
+              taskdef.json > taskdef-generated.json
+          mv taskdef-generated.json taskdef.json
           cat taskdef.json
 
-      - name: Generate appspec.yml
+      - name: Generate appspec.yml from template
         run: |
-          cat <<EOF > appspec.yml
-          version: 0.0
-          Resources:
-            - TargetService:
-                Type: AWS::ECS::Service
-                Properties:
-                  TaskDefinition: <TASK_DEFINITION>
-                  LoadBalancerInfo:
-                    ContainerName: "cicd-pipeline-dev-app"
-                    ContainerPort: 3000
-          EOF
+          # Use template from repo and substitute variables
+          sed -e "s/\${ENVIRONMENT}/dev/g" appspec.yml > appspec-generated.yml
+          mv appspec-generated.yml appspec.yml
           cat appspec.yml
 
       - name: Upload artifacts to S3
