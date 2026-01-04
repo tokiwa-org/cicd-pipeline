@@ -266,6 +266,27 @@ resource "aws_iam_role_policy_attachment" "ecs_infrastructure" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonECSInfrastructureRolePolicyForManagedInstances"
 }
 
+# PassRole policy for infrastructure role to launch instances
+resource "aws_iam_role_policy" "ecs_infrastructure_passrole" {
+  count = var.launch_type == "managed_instances" ? 1 : 0
+  name  = "PassRoleForManagedInstances"
+  role  = aws_iam_role.ecs_infrastructure[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "iam:PassRole"
+      Resource = aws_iam_role.ecs_instance[0].arn
+      Condition = {
+        StringEquals = {
+          "iam:PassedToService" = "ec2.amazonaws.com"
+        }
+      }
+    }]
+  })
+}
+
 # ECS Capacity Provider for Managed Instances
 # Note: The 'cluster' parameter is required - capacity provider is automatically associated at creation
 resource "aws_ecs_capacity_provider" "managed_instances" {
