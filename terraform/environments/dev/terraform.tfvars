@@ -7,7 +7,7 @@ container_port = 3000
 container_cpu  = 256
 container_memory = 512
 desired_count  = 1
-launch_type    = "managed_instances"  # fargate, ec2, or managed_instances
+launch_type    = "fargate"  # fargate, ec2, or managed_instances
 
 # EC2 launch type configuration (uncomment when launch_type = "ec2")
 # ec2_instance_type    = "t3.micro"
