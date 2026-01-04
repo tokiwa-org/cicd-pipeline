@@ -12,7 +12,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.15"  # v6.15+ required for ECS Managed Instances
     }
   }
 }
@@ -69,7 +69,6 @@ module "ecs" {
   vpc_id                = module.vpc.vpc_id
   private_subnet_ids    = module.vpc.private_subnet_ids
   alb_security_group_id = module.alb.alb_security_group_id
-  target_group_arn      = module.alb.target_group_blue_arn
   ecr_repository_url    = module.ecr.repository_url
   container_port        = var.container_port
   container_cpu         = var.container_cpu
@@ -82,6 +81,18 @@ module "ecs" {
   ec2_desired_capacity = var.ec2_desired_capacity
   ec2_min_capacity     = var.ec2_min_capacity
   ec2_max_capacity     = var.ec2_max_capacity
+
+  # Managed Instances Configuration
+  managed_instances_vcpu_range   = var.managed_instances_vcpu_range
+  managed_instances_memory_range = var.managed_instances_memory_range
+
+  # Blue/Green Deployment Configuration (ECS native)
+  target_group_blue_arn        = module.alb.target_group_blue_arn
+  target_group_green_arn       = module.alb.target_group_green_arn
+  production_listener_rule_arn = module.alb.production_listener_rule_arn
+  test_listener_rule_arn       = module.alb.test_listener_rule_arn
+  deployment_strategy          = var.deployment_strategy
+  bake_time_in_minutes         = var.bake_time_in_minutes
 }
 
 module "codepipeline" {

@@ -8,47 +8,55 @@ variable "environment" {
   type        = string
 }
 
+# =============================================================================
+# NOTE: The following variables are no longer needed with ECS native blue/green
+# They are kept for backward compatibility but can be removed after migration
+# =============================================================================
+
 variable "ecs_cluster_name" {
-  description = "ECS cluster name"
+  description = "DEPRECATED: ECS cluster name (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "ecs_service_name" {
-  description = "ECS service name"
+  description = "DEPRECATED: ECS service name (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "listener_arn" {
-  description = "ALB production listener ARN"
+  description = "DEPRECATED: ALB production listener ARN (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "test_listener_arn" {
-  description = "ALB test listener ARN"
+  description = "DEPRECATED: ALB test listener ARN (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "target_group_blue_name" {
-  description = "Blue target group name"
+  description = "DEPRECATED: Blue target group name (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "target_group_green_name" {
-  description = "Green target group name"
+  description = "DEPRECATED: Green target group name (not needed for ECS native deployment)"
   type        = string
+  default     = ""
 }
 
 variable "termination_wait_time" {
-  description = "Time in minutes to wait before terminating blue instances"
+  description = "DEPRECATED: Use bake_time_in_minutes in ECS module instead"
   type        = number
   default     = 5
 }
 
 variable "require_approval" {
-  description = "Whether to require manual approval before deployment"
+  description = "DEPRECATED: Approval workflow should be handled in GitHub Actions"
   type        = bool
   default     = false
 }
-
-# NOTE: github_owner, github_repo, create_github_oidc variables removed
-# GitHub OIDC is now managed in terraform/bootstrap/

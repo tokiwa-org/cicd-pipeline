@@ -7,6 +7,6 @@ container_port = 3000
 container_cpu  = 512
 container_memory = 1024
 desired_count  = 3
-launch_type    = "fargate"  # fargate or ec2
+launch_type    = "fargate"  # fargate, ec2, or managed_instances
 
 # GitHub OIDC is now managed in terraform/bootstrap/

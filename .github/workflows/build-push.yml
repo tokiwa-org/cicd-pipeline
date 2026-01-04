@@ -1,4 +1,4 @@
-name: Build and Push
+name: Build and Deploy
 
 on:
   push:
@@ -11,18 +11,22 @@ on:
 
 env:
   AWS_REGION: ap-northeast-1
-  ECR_REPOSITORY: cicd-pipeline-dev-app  # Update per environment
+  ECR_REPOSITORY: cicd-pipeline-dev-app
+  ECS_CLUSTER: cicd-pipeline-dev-cluster
+  ECS_SERVICE: cicd-pipeline-dev-service
+  TASK_DEFINITION_FAMILY: cicd-pipeline-dev-task
+  CONTAINER_NAME: cicd-pipeline-dev-app
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  build-and-push:
-    name: Build and Push to ECR
+  build-and-deploy:
+    name: Build and Deploy to ECS
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tag: ${{ steps.meta.outputs.image-tag }}
 
     steps:
       - name: Checkout code
@@ -64,47 +68,79 @@ jobs:
           docker push ${{ steps.meta.outputs.full-image }}
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
 
-      - name: Generate imageDetail.json
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Get current task definition
+        id: current-task-def
         run: |
-          cat <<EOF > imageDetail.json
-          {
-            "ImageURI": "${{ steps.meta.outputs.full-image }}"
-          }
-          EOF
-          cat imageDetail.json
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.TASK_DEFINITION_FAMILY }} \
+            --query 'taskDefinition' \
+            > task-definition.json
 
-      - name: Generate taskdef.json from template
-        run: |
-          # Use template from repo and substitute variables
-          sed -e "s/\${ENVIRONMENT}/dev/g" \
-              -e "s/\${AWS_ACCOUNT_ID}/${{ secrets.AWS_ACCOUNT_ID }}/g" \
-              taskdef.json > taskdef-generated.json
-          mv taskdef-generated.json taskdef.json
-          cat taskdef.json
+          # Remove fields that shouldn't be in new registration
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            task-definition.json > cleaned-task-def.json
 
-      - name: Generate appspec.yml from template
+      - name: Update task definition with new image
+        id: update-task-def
         run: |
-          # Use template from repo and substitute variables
-          sed -e "s/\${ENVIRONMENT}/dev/g" appspec.yml > appspec-generated.yml
-          mv appspec-generated.yml appspec.yml
-          cat appspec.yml
+          # Update the container image in task definition
+          jq --arg IMAGE "${{ steps.meta.outputs.full-image }}" \
+            '.containerDefinitions[0].image = $IMAGE' \
+            cleaned-task-def.json > new-task-def.json
 
-      - name: Upload artifacts to S3
+          cat new-task-def.json
+
+      - name: Register new task definition
+        id: register-task-def
         run: |
-          # Create a zip file containing all artifacts (required by CodePipeline S3 source)
-          zip -j artifacts.zip imageDetail.json taskdef.json appspec.yml
-          aws s3 cp artifacts.zip s3://${{ secrets.ARTIFACTS_BUCKET }}/artifacts.zip
-          # Also upload imageDetail.json to trigger CodePipeline
-          aws s3 cp imageDetail.json s3://${{ secrets.ARTIFACTS_BUCKET }}/imageDetail.json
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-def.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task-def-arn=${TASK_DEF_ARN}" >> $GITHUB_OUTPUT
+          echo "Registered new task definition: ${TASK_DEF_ARN}"
+
+      - name: Deploy to ECS (Native Blue/Green)
+        id: deploy
+        run: |
+          # Update ECS service with new task definition
+          # ECS will automatically perform blue/green deployment
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ steps.register-task-def.outputs.task-def-arn }} \
+            --force-new-deployment
+
+          echo "Deployment initiated. ECS is performing native blue/green deployment."
+
+      - name: Wait for deployment to stabilize
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }}
+
+          echo "Deployment completed successfully!"
+
+      - name: Get deployment status
+        if: always()
+        run: |
+          aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,deployments:deployments[*].{status:status,runningCount:runningCount,desiredCount:desiredCount,rolloutState:rolloutState}}' \
+            --output json
 
       - name: Summary
         run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ steps.meta.outputs.full-image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Task Definition**: \`${{ steps.register-task-def.outputs.task-def-arn }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: \`${{ env.ECS_CLUSTER }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: \`${{ env.ECS_SERVICE }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Artifacts uploaded to S3. CodePipeline will be triggered automatically." >> $GITHUB_STEP_SUMMARY
+          echo "ECS native blue/green deployment completed." >> $GITHUB_STEP_SUMMARY

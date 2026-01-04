@@ -54,9 +54,28 @@ variable "desired_count" {
 
 # ECS Launch Type Configuration
 variable "launch_type" {
-  description = "ECS launch type: fargate or ec2"
+  description = "ECS launch type: fargate, ec2, or managed_instances"
   type        = string
   default     = "fargate"
+}
+
+# Managed Instances Configuration (used when launch_type is managed_instances)
+variable "managed_instances_vcpu_range" {
+  description = "vCPU range for managed instances"
+  type = object({
+    min = number
+    max = number
+  })
+  default = { min = 1, max = 4 }
+}
+
+variable "managed_instances_memory_range" {
+  description = "Memory range (MiB) for managed instances"
+  type = object({
+    min = number
+    max = number
+  })
+  default = { min = 2048, max = 8192 }
 }
 
 variable "ec2_instance_type" {
@@ -81,6 +100,19 @@ variable "ec2_max_capacity" {
   description = "Maximum number of EC2 instances in ASG"
   type        = number
   default     = 4
+}
+
+# Blue/Green Deployment Configuration (ECS native)
+variable "deployment_strategy" {
+  description = "ECS deployment strategy: ROLLING or BLUE_GREEN"
+  type        = string
+  default     = "BLUE_GREEN"
+}
+
+variable "bake_time_in_minutes" {
+  description = "Bake time for blue/green deployment validation (0-1440 minutes)"
+  type        = number
+  default     = 1  # Short bake time for dev
 }
 
 # NOTE: github_owner and github_repo removed

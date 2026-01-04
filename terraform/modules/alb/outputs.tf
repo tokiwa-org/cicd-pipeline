@@ -47,3 +47,13 @@ output "test_listener_arn" {
   description = "Test listener ARN"
   value       = aws_lb_listener.test.arn
 }
+
+output "production_listener_rule_arn" {
+  description = "Production listener rule ARN for Blue/Green deployment"
+  value       = aws_lb_listener_rule.production.arn
+}
+
+output "test_listener_rule_arn" {
+  description = "Test listener rule ARN for Blue/Green deployment"
+  value       = aws_lb_listener_rule.test.arn
+}
