@@ -1,7 +1,6 @@
 /**
  * CI/CD Pipeline Demo Application
- * Initial deployment: 2026-01-03
- * EC2 launch type - GitHub secrets via Terraform
+ * Build: 2026-01-04 - Full pipeline verification
  */
 import express, { Request, Response } from 'express';
 
